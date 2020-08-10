@@ -14,6 +14,7 @@ from .codec import decode_message, is_chunked_message, join
 from .constants import ACK, CRLF, EOT, NAK, ENCODING
 from .exceptions import InvalidState, NotAccepted
 from .protocol import ASTMProtocol
+from .logging import server_log
 
 log = logging.getLogger(__name__)
 
@@ -59,57 +60,83 @@ class BaseRecordsDispatcher(object):
     encoding = ENCODING
 
     def __init__(self, encoding=None):
+        server_log("Server: Initiating request dispatcher")
         self.encoding = encoding or self.encoding
         self.dispatch = {
             'H': self.on_header,
+            'Q': self.on_query,
             'C': self.on_comment,
             'P': self.on_patient,
             'O': self.on_order,
             'R': self.on_result,
+            'M': self.on_information,
             'L': self.on_terminator
         }
         self.wrappers = {}
+        server_log("Request dispatcher initialization complete")
 
     def __call__(self, message):
+        server_log("In __call__ method of request dispatcher with message {}".format(message))
         seq, records, cs = decode_message(message, self.encoding)
         for record in records:
-            self.dispatch.get(record[0], self.on_unknown)(self.wrap(record))
+            print(record[0])
+            # self.dispatch.get(record[0], self.on_unknown)(self.wrap(record))
+            self.dispatch.get(record[0], self.on_unknown)(record)
 
     def wrap(self, record):
+        server_log("Wrapping record "+record)
         rtype = record[0]
         if rtype in self.wrappers:
             return self.wrappers[rtype](*record)
         return record
 
     def _default_handler(self, record):
-        log.warn('Record remains unprocessed: %s', record)
+        server_log(f"Ignoring processing of record {record}")
+        log.warning('Record remains unprocessed: %s', record)
 
     def on_header(self, record):
         """Header record handler."""
+        server_log("Processing header record {}".format(record))
+        self._default_handler(record)
+
+    def on_query(self, record):
+        """Header record handler."""
+        server_log("Processing query record {}".format(record))
         self._default_handler(record)
 
     def on_comment(self, record):
         """Comment record handler."""
+        server_log("Processing comment record {}".format(record))
         self._default_handler(record)
 
     def on_patient(self, record):
         """Patient record handler."""
+        server_log("Processing patient record {}".format(record))
         self._default_handler(record)
 
     def on_order(self, record):
         """Order record handler."""
+        server_log("Processing order record {}".format(record))
         self._default_handler(record)
 
     def on_result(self, record):
         """Result record handler."""
+        server_log("Processing result record {}".format(record))
         self._default_handler(record)
 
     def on_terminator(self, record):
         """Terminator record handler."""
+        server_log("Processing terminator record {}".format(record))
+        self._default_handler(record)
+
+    def on_information(self, record):
+        """Header record handler."""
+        server_log("Processing information record {}".format(record))
         self._default_handler(record)
 
     def on_unknown(self, record):
         """Fallback handler for dispatcher."""
+        server_log("Processing unknown record {}".format(record))
         self._default_handler(record)
 
 
@@ -129,46 +156,61 @@ class RequestHandler(ASTMProtocol):
         super(RequestHandler, self).__init__(sock, timeout=timeout)
         self._chunks = []
         host, port = sock.getpeername() if sock is not None else (None, None)
+        server_log(f"Initiating Client handler for {host}:{port}")
         self.client_info = {'host': host, 'port': port}
         self.dispatcher = dispatcher
         self._is_transfer_state = False
         self.terminator = 1
+        server_log(f"Client handler initiation for {host}:{port} complete")
 
     def on_enq(self):
+        server_log(f"ENQ received from {self.client_info['host']}:{self.client_info['port']}")
         if not self._is_transfer_state:
             self._is_transfer_state = True
             self.terminator = [CRLF, EOT]
+            server_log(f"ENQ handle from {self.client_info['host']}:{self.client_info['port']} complete")
             return ACK
         else:
             log.error('ENQ is not expected')
+            server_log(f"Unexpected ENQ from {self.client_info['host']}:{self.client_info['port']}")
             return NAK
 
     def on_ack(self):
+        server_log(f"ACK received from {self.client_info['host']}:{self.client_info['port']}")
         raise NotAccepted('Server should not be ACKed.')
 
     def on_nak(self):
+        server_log(f"ACK received from {self.client_info['host']}:{self.client_info['port']}")
         raise NotAccepted('Server should not be NAKed.')
 
     def on_eot(self):
+        server_log(f"EOT received from {self.client_info['host']}:{self.client_info['port']}")
         if self._is_transfer_state:
             self._is_transfer_state = False
             self.terminator = 1
+            server_log(f"EOT handle from {self.client_info['host']}:{self.client_info['port']} complete")
         else:
+            server_log(f"Unexpected EOT received from {self.client_info['host']}:{self.client_info['port']}")
             raise InvalidState('Server is not ready to accept EOT message.')
 
     def on_message(self):
+        server_log(f"Message(ETX) received from {self.client_info['host']}:{self.client_info['port']}")
         if not self._is_transfer_state:
+            server_log(f"Unexpected ETX received from {self.client_info['host']}:{self.client_info['port']}")
             self.discard_input_buffers()
             return NAK
         else:
             try:
                 self.handle_message(self._last_recv_data)
+                server_log(f"ETX handling from {self.client_info['host']}:{self.client_info['port']} complete")
                 return ACK
             except Exception:
+                server_log(f"Error handling ETX from {self.client_info['host']}:{self.client_info['port']}")
                 log.exception('Error occurred on message handling.')
                 return NAK
 
     def handle_message(self, message):
+        server_log(f"handling message from {self.client_info['host']}:{self.client_info['port']} : {message.decode()}")
         self.is_chunked_transfer = is_chunked_message(message)
         if self.is_chunked_transfer:
             self._chunks.append(message)
@@ -180,13 +222,19 @@ class RequestHandler(ASTMProtocol):
             self.dispatcher(message)
 
     def discard_input_buffers(self):
+        server_log(f"Discarding input buffers for {self.client_info['host']}:{self.client_info['port']}")
         self._chunks = []
         return super(RequestHandler, self).discard_input_buffers()
 
     def on_timeout(self):
         """Closes connection on timeout."""
+        server_log(f"Connection timeout for {self.client_info['host']}:{self.client_info['port']}")
         super(RequestHandler, self).on_timeout()
         self.close()
+
+    def handle_close(self):
+        super(RequestHandler, self).handle_close()
+        server_log(f"{self.client_info['host']}:{self.client_info['port']} disconnected")
 
 
 class Server(Dispatcher):
@@ -220,9 +268,12 @@ class Server(Dispatcher):
                  request=None, dispatcher=None,
                  timeout=None, encoding=None):
         super(Server, self).__init__()
+        server_log("Started Server Initiation")
         self.create_socket(socket.AF_INET, socket.SOCK_STREAM)
+        server_log("Server Socket Created")
         self.set_reuse_addr()
         self.bind((host, port))
+        server_log("Server address binding complete")
         self.listen(5)
         self.pool = []
         self.timeout = timeout
@@ -231,16 +282,23 @@ class Server(Dispatcher):
             self.request = request
         if dispatcher is not None:
             self.dispatcher = dispatcher
+        server_log("Server Initiation complete")
 
     def handle_accept(self):
+        server_log("Accepting new Connection")
         pair = self.accept()
         if pair is None:
+            server_log("Connection failed")
             return
         sock, addr = pair
+        server_log("New connection established with {}".format(addr))
         self.request(sock, self.dispatcher(self.encoding), timeout=self.timeout)
+        server_log(f"Client handler for {addr} created")
         super(Server, self).handle_accept()
+        server_log("Client connection complete")
 
     def serve_forever(self, *args, **kwargs):
         """Enters into the :func:`polling loop <asynclib.loop>` to let server
         handle incoming requests."""
+        server_log("Server now awaiting connections.....")
         loop(*args, **kwargs)

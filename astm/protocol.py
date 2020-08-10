@@ -11,6 +11,7 @@ import logging
 from .asynclib import AsyncChat, call_later
 from .records import HeaderRecord, TerminatorRecord
 from .constants import STX,  ENQ, ACK, NAK, EOT, ENCODING
+from .logging import common_log
 
 log = logging.getLogger(__name__)
 
@@ -36,10 +37,12 @@ class ASTMProtocol(AsyncChat):
 
     def __init__(self, sock=None, map=None, timeout=None):
         super(ASTMProtocol, self).__init__(sock, map)
+        common_log("Initiating ASTMProtocol instance")
         if timeout is not None:
             self.timer = call_later(timeout, self.on_timeout)
 
     def found_terminator(self):
+        common_log("In found_terminator method")
         while self.inbox:
             data = self.inbox.popleft()
             if not data:
@@ -48,6 +51,7 @@ class ASTMProtocol(AsyncChat):
 
     def dispatch(self, data):
         """Dispatcher of received data."""
+        common_log("Determining nature of received message")
         self._last_recv_data = data
         if data == ENQ:
             handler = self.on_enq
@@ -57,9 +61,10 @@ class ASTMProtocol(AsyncChat):
             handler = self.on_nak
         elif data == EOT:
             handler = self.on_eot
-        elif data.startswith(STX): # this looks like a message
+        elif data.startswith(STX):  # this looks like a message
             handler = self.on_message
         else:
+            common_log("Unknown message. Defaulting to default_handler")
             handler = lambda: self.default_handler(data)
 
         resp = handler()
@@ -68,9 +73,11 @@ class ASTMProtocol(AsyncChat):
             self.push(resp)
 
     def default_handler(self, data):
+        common_log("Unknown message: {}".format(data))
         raise ValueError('Unable to dispatch data: %r', data)
 
     def push(self, data):
+        common_log("Adding response {} to queue".format(data))
         self._last_sent_data = data
         if self.timer is not None and not self.timer.cancelled:
             self.timer.reset()
@@ -97,6 +104,7 @@ class ASTMProtocol(AsyncChat):
         log.warning('Communication timeout')
 
     def handle_read(self):
+        common_log("Reading incoming data")
         if self.timer is not None and not self.timer.cancelled:
             self.timer.reset()
         super(ASTMProtocol, self).handle_read()
