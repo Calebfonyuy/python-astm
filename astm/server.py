@@ -16,7 +16,7 @@ from .constants import ACK, CRLF, EOT, NAK, ENCODING
 from .exceptions import InvalidState, NotAccepted
 from .protocol import ASTMProtocol
 from .logging import server_log
-from orm.models import Header, ResultatAutomate, find_automate
+from orm.models import ResultatAutomate, find_automate
 from orm.result_params import params
 
 
@@ -77,7 +77,7 @@ class BaseRecordsDispatcher(object):
             'L': self.on_terminator
         }
         self.wrappers = {}
-        self.active_header = None
+        self.automate = None
         self.order_id = None
         server_log("Request dispatcher initialization complete")
 
@@ -103,9 +103,8 @@ class BaseRecordsDispatcher(object):
     def on_header(self, record):
         """Header record handler."""
         server_log("Processing header record {}".format(record))
-        self.active_header = Header(record)
+        self.automate = find_automate(record[4][0], record[4][1], record[4][2])
         self.order_id = None
-        server_log(self.active_header.log())
         server_log("Completed header handling")
 
     def on_query(self, record):
@@ -134,13 +133,14 @@ class BaseRecordsDispatcher(object):
     def on_result(self, record):
         """Result record handler."""
         server_log("Processing result record {}".format(record))
-        #result = ResultatAutomate(
-        #    automate=self.active_header.automate,
-        #    code=self.order_id,
-        #    id_rendu=params[record[2][3]],
-        #    valeur=record[3],
-        #    nom_rendu=record[2][3]
-        #)
+        result = ResultatAutomate(
+            automate=self.automate,
+            code_bar=self.order_id,
+            code_rendu=params[record[2][3]],
+            nom_rendu=record[2][3],
+            valeur=record[3]
+        )
+        result.save()
         self._default_handler(record)
 
     def on_terminator(self, record):
@@ -311,6 +311,8 @@ class Server(Dispatcher):
             return
         sock, addr = pair
         server_log("New connection established with {}".format(addr))
+        # Distinction between various automates can be made here by deciding which dispatcher gets
+        # to handle the new client. This is especially possible with static routing.
         self.request(sock, self.dispatcher(self.encoding), timeout=self.timeout)
         server_log(f"Client handler for {addr} created")
         super(Server, self).handle_accept()

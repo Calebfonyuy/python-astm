@@ -10,6 +10,7 @@ def get_conn():
             user=db_config.DB_USER,
             password=db_config.DB_PASWD
         )
+        conn.autocommit = True
         return conn
     except (Exception, psycopg2.DatabaseError) as error:
         pass

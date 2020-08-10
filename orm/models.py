@@ -6,13 +6,23 @@ def _camel_to_snake(value):
     return re.sub(r'(?<!^)(?=[A-Z])', '_', value).lower()
 
 
+def find_automate(model, serial_number, software_version):
+    with get_conn() as conn:
+        if not conn:
+            return False
+        cursor = conn.cursor()
+        cursor.execute("SELECT id FROM automates_automate where model='"+model+"' and serial_number='"+serial_number
+                       + "' and software_version='"+software_version+"'")
+        return cursor.fetchone()[0]
+
+
 class Model:
 
     def __init__(self):
         pass
 
     def _get_db_table(self):
-        return _camel_to_snake(self.__class__.__name__)
+        return ("automates_"+self.__class__.__name__).lower()
 
     def save(self):
         conn = get_conn()
@@ -22,7 +32,7 @@ class Model:
             cursor = conn.cursor()
         query = ""
         if not self.id:
-            query = "INSERT INTO "+self._get_db_table()
+            query = "INSERT INTO "+self._get_db_table()+self._create_save_string()
         else:
             query = "UPDATE "+self._get_db_table()+" SET "
             query += self._create_update_string()+" WHERE id="+self.__dict__['id']
@@ -31,16 +41,22 @@ class Model:
             cursor.execute(query)
             conn.close()
             return True
-        except:
+        except Exception as ex:
+            print(ex)
             return False
 
     def _create_save_string(self):
         query = "("
         values = " VALUES("
         for key in self.__dict__.keys():
+            if key == "id":
+                continue
             query += key+","
             if self.__dict__[key]:
-                values += self.__dict__[key]+","
+                if not isinstance(self.__dict__[key], str):
+                    values += str(self.__dict__[key]) + ","
+                else:
+                    values += "'" + self.__dict__[key] + "',"
             else:
                 values += "NULL,"
 
@@ -63,42 +79,18 @@ class Model:
         print(self._create_save_string())
 
 
-def find_automate(port):
-    return 1
-
-
-class Automate(Model):
-
-    def __init__(self, nom, address_ip, port, id=None, bidirectional=False, document=False, image=False):
-        self.id = id
-        self.address_ip = address_ip
-        self.port = port
-        self.bidirectional = bidirectional
-        self.document = document
-        self.image = image
-
-
 class ResultatAutomate(Model):
 
-    def __init__(self, automate, code, id_rendu, valeur, id=None, nom_rendu=None):
-        self.automate = automate
-        self.code = code
-        self.id_rendu = id_rendu
+    def __init__(self, automate, code_bar, code_rendu, nom_rendu, valeur, id=None, created_at=None):
+        self.automate_id = automate
+        self.code_bar = code_bar
+        self.code_rendu = code_rendu
+        self.nom_rendu = nom_rendu
         self.valeur = valeur
         self.id = id
-        self.nom_rendu = nom_rendu
+        self.statut = 1
+        self.created_at = created_at
+        self.updated_at = created_at
 
-
-class Header:
-
-    def __init__(self, record, addr=['192.168,1', 20]):
-        self.host = addr[0],
-        self.port = addr[1],
-        self.name = record[4][0],
-        self.serial = record[4][0],
-        self.protocol = record[12],
-        self.date = record[13]
-        self.automate = find_automate(addr)
-
-    def log(self):
-        return self.__dict__
+    def __str__(self):
+        return self.nom_rendu

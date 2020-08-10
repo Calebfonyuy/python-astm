@@ -1,5 +1,5 @@
 # DATABASE CONNECTION SETTINGS FOR ORM
-DB_NAME = "labo_bethanie"
+DB_NAME = "labo_bethanie_auto"
 DB_HOST = "localhost"
 DB_PORT = 5432
 DB_USER = "postgres"
