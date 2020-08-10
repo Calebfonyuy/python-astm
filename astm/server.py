@@ -6,7 +6,8 @@
 # This software is licensed as described in the file COPYING, which
 # you should have received as part of this distribution.
 #
-
+import sys
+sys.path.insert(1, "../")
 import logging
 import socket
 from .asynclib import Dispatcher, loop
@@ -15,6 +16,9 @@ from .constants import ACK, CRLF, EOT, NAK, ENCODING
 from .exceptions import InvalidState, NotAccepted
 from .protocol import ASTMProtocol
 from .logging import server_log
+from orm.models import Header, ResultatAutomate, find_automate
+from orm.result_params import params
+
 
 log = logging.getLogger(__name__)
 
@@ -73,6 +77,8 @@ class BaseRecordsDispatcher(object):
             'L': self.on_terminator
         }
         self.wrappers = {}
+        self.active_header = None
+        self.order_id = None
         server_log("Request dispatcher initialization complete")
 
     def __call__(self, message):
@@ -97,10 +103,13 @@ class BaseRecordsDispatcher(object):
     def on_header(self, record):
         """Header record handler."""
         server_log("Processing header record {}".format(record))
-        self._default_handler(record)
+        self.active_header = Header(record)
+        self.order_id = None
+        server_log(self.active_header.log())
+        server_log("Completed header handling")
 
     def on_query(self, record):
-        """Header record handler."""
+        """Query record handler."""
         server_log("Processing query record {}".format(record))
         self._default_handler(record)
 
@@ -117,20 +126,30 @@ class BaseRecordsDispatcher(object):
     def on_order(self, record):
         """Order record handler."""
         server_log("Processing order record {}".format(record))
+        if self.order_id:
+            raise NotAccepted("Not expecting New order record at this moment")
+        self.order_id = record[2]
         self._default_handler(record)
 
     def on_result(self, record):
         """Result record handler."""
         server_log("Processing result record {}".format(record))
+        #result = ResultatAutomate(
+        #    automate=self.active_header.automate,
+        #    code=self.order_id,
+        #    id_rendu=params[record[2][3]],
+        #    valeur=record[3],
+        #    nom_rendu=record[2][3]
+        #)
         self._default_handler(record)
 
     def on_terminator(self, record):
         """Terminator record handler."""
-        server_log("Processing terminator record {}".format(record))
-        self._default_handler(record)
+        server_log("Closing query handling")
+        self.active_header = None
 
     def on_information(self, record):
-        """Header record handler."""
+        """Information record handler."""
         server_log("Processing information record {}".format(record))
         self._default_handler(record)
 
@@ -205,7 +224,7 @@ class RequestHandler(ASTMProtocol):
                 server_log(f"ETX handling from {self.client_info['host']}:{self.client_info['port']} complete")
                 return ACK
             except Exception:
-                server_log(f"Error handling ETX from {self.client_info['host']}:{self.client_info['port']}")
+                server_log(f"Error handling ETX from {self.client_info['host']}:{self.client_info['port']}: {self._last_recv_data}")
                 log.exception('Error occurred on message handling.')
                 return NAK
 
