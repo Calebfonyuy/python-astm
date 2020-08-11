@@ -1,7 +1,6 @@
 import re
 from .db_conn import get_conn
 
-
 def _camel_to_snake(value):
     return re.sub(r'(?<!^)(?=[A-Z])', '_', value).lower()
 
@@ -11,8 +10,7 @@ def find_automate(model, serial_number, software_version):
         if not conn:
             return False
         cursor = conn.cursor()
-        cursor.execute("SELECT id FROM automates_automate where model='"+model+"' and serial_number='"+serial_number
-                       + "' and software_version='"+software_version+"'")
+        cursor.execute("SELECT id FROM automates_automate where model='"+model+"' and serial_number='"+serial_number+"'")
         return cursor.fetchone()[0]
 
 
@@ -97,9 +95,15 @@ class ResultatAutomate(Model):
         if not conn:
             return False
         cursor = conn.cursor()
-        cursor.execute("UPDATE automates_resultatautomate SET statut=0 WHERE code_bar='"+self.code_bar
-                       + "' and code_rendu='" + self.code_rendu + "'")
-        return super(ResultatAutomate, self).save()
+        try:
+            print("Now executing statement")
+            cursor.execute("UPDATE automates_resultatautomate SET statut=0 WHERE code_bar='"+self.code_bar+"' and code_rendu='" + str(self.code_rendu) + "'")
+            print("Statement execution complete")
+            return super(ResultatAutomate, self).save()
+        except Exception as error:
+            print("Error saving item")
+            print(error)
+            return False
 
     def __str__(self):
         return self.nom_rendu

@@ -128,25 +128,26 @@ class BaseRecordsDispatcher(object):
         if self.order_id:
             raise NotAccepted("Not expecting New order record at this moment")
         self.order_id = record[2]
-        self._default_handler(record)
 
     def on_result(self, record):
         """Result record handler."""
         server_log("Processing result record {}".format(record))
+        code = params[record[2][3]]
+        if not code:
+            return
         result = ResultatAutomate(
             automate=self.automate,
             code_bar=self.order_id,
-            code_rendu=params[record[2][3]],
+            code_rendu=code,
             nom_rendu=record[2][3],
             valeur=record[3]
         )
         result.save()
-        self._default_handler(record)
 
     def on_terminator(self, record):
         """Terminator record handler."""
         server_log("Closing query handling")
-        self.active_header = None
+        self.automate = None
 
     def on_information(self, record):
         """Information record handler."""
