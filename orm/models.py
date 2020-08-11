@@ -92,5 +92,14 @@ class ResultatAutomate(Model):
         self.created_at = created_at
         self.updated_at = created_at
 
+    def save(self):
+        conn = get_conn()
+        if not conn:
+            return False
+        cursor = conn.cursor()
+        cursor.execute("UPDATE automates_resultatautomate SET statut=0 WHERE code_bar='"+self.code_bar
+                       + "' and code_rendu='" + self.code_rendu + "'")
+        return super(ResultatAutomate, self).save()
+
     def __str__(self):
         return self.nom_rendu
