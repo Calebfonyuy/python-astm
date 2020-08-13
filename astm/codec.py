@@ -10,7 +10,7 @@
 from collections import Iterable
 from .compat import unicode
 from .constants import (
-    STX, ETX, ETB, CR, LF, CRLF,
+    STX, ETX, ETB, CR, LF, CRLF, RS,
     FIELD_SEP, COMPONENT_SEP, RECORD_SEP, REPEAT_SEP, ENCODING
 )
 try:
@@ -79,6 +79,15 @@ def decode_message(message, encoding):
     """
     if not isinstance(message, bytes):
         raise TypeError('bytes expected, got %r' % message)
+    if message.startswith(RS):
+        seq = 0
+        cs = None
+        values = message[1:].split(FIELD_SEP)
+        records = {}
+        for value in values:
+            records[value[:1]] = value[2:]
+        return seq, records, cs
+
     if not (message.startswith(STX) and message.endswith(CRLF)):
         raise ValueError('Malformed ASTM message. Expected that it will started'
                          ' with %x and followed by %x%x characters. Got: %r'

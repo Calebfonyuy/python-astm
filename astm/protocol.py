@@ -61,10 +61,10 @@ class ASTMProtocol(AsyncChat):
             handler = self.on_nak
         elif data == EOT:
             handler = self.on_eot
-        elif data == RS:
-            handler = self.on_rs
         elif data == GS:
             handler = self.on_gs
+        elif data.startswith(RS):
+            handler = self.on_rs
         elif data.startswith(STX):  # this looks like a message
             handler = self.on_message
         else:

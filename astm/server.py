@@ -78,6 +78,9 @@ class BaseRecordsDispatcher(object):
     def __call__(self, message):
         server_log("In __call__ method of request dispatcher with message {}".format(message))
         seq, records, cs = decode_message(message, self.encoding)
+        if isinstance(records, dict):
+            self.dispatch.get(records['mt'], self.on_unknown)(records)
+            return
         for record in records:
             print(record[0])
             # self.dispatch.get(record[0], self.on_unknown)(self.wrap(record))
@@ -198,6 +201,8 @@ class RequestHandler(ASTMProtocol):
 
     def on_gs(self):
         server_log(f"GS received from {self.client_info['host']}:{self.client_info['port']}")
+        self._is_transfer_state = False
+        return ACK
 
     def on_message(self):
         server_log(f"Message(ETX) received from {self.client_info['host']}:{self.client_info['port']}")
@@ -206,13 +211,21 @@ class RequestHandler(ASTMProtocol):
             self.discard_input_buffers()
             return NAK
         else:
+            self._is_transfer_state = True
+
+    def on_result(self):
+        server_log(f"Result received from {self.client_info['host']}:{self.client_info['port']}")
+        if not self._is_transfer_state:
+            server_log(f"Unexpected RS received from {self.client_info['host']}:{self.client_info['port']}")
+            self.discard_input_buffers()
+            return NAK
+        else:
             try:
                 self.handle_message(self._last_recv_data)
-                server_log(f"ETX handling from {self.client_info['host']}:{self.client_info['port']} complete")
-                return ACK
+                server_log(f"RS handling from {self.client_info['host']}:{self.client_info['port']} complete")
             except Exception:
-                server_log(f"Error handling ETX from {self.client_info['host']}:{self.client_info['port']}")
-                log.exception('Error occurred on message handling.')
+                server_log(f"Error handling RS from {self.client_info['host']}:{self.client_info['port']}")
+                log.exception('Error occurred on result handling.')
                 return NAK
 
     def handle_message(self, message):
