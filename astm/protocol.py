@@ -10,7 +10,7 @@
 import logging
 from .asynclib import AsyncChat, call_later
 from .records import HeaderRecord, TerminatorRecord
-from .constants import STX,  ENQ, ACK, NAK, EOT, ENCODING
+from .constants import STX,  ENQ, ACK, NAK, RS, GS, EOT, ENCODING
 from .logging import common_log
 
 log = logging.getLogger(__name__)
@@ -61,6 +61,10 @@ class ASTMProtocol(AsyncChat):
             handler = self.on_nak
         elif data == EOT:
             handler = self.on_eot
+        elif data == RS:
+            handler = self.on_rs
+        elif data == GS:
+            handler = self.on_gs
         elif data.startswith(STX):  # this looks like a message
             handler = self.on_message
         else:
@@ -94,6 +98,12 @@ class ASTMProtocol(AsyncChat):
 
     def on_eot(self):
         """Calls on <EOT> message receiving."""
+
+    def on_rs(self):
+        """Calls on <RS> message receiving."""
+
+    def on_gs(self):
+        """Calls on <GS> message receiving."""
 
     def on_message(self):
         """Calls on ASTM message receiving."""

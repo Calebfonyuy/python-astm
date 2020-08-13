@@ -193,6 +193,12 @@ class RequestHandler(ASTMProtocol):
             server_log(f"Unexpected EOT received from {self.client_info['host']}:{self.client_info['port']}")
             raise InvalidState('Server is not ready to accept EOT message.')
 
+    def on_rs(self):
+        server_log(f"RS received from {self.client_info['host']}:{self.client_info['port']}")
+
+    def on_gs(self):
+        server_log(f"GS received from {self.client_info['host']}:{self.client_info['port']}")
+
     def on_message(self):
         server_log(f"Message(ETX) received from {self.client_info['host']}:{self.client_info['port']}")
         if not self._is_transfer_state:

@@ -22,6 +22,10 @@ ENQ = b'\x05'
 ACK = b'\x06'
 #: Command rejected token.
 NAK = b'\x15'
+#: Result set sent from bioMerieux equipment
+RS  = b'\x1E'
+#: bioMerieux Checksum character
+GS  = b'\x1D'
 #: Message chunk end token.
 ETB = b'\x17'
 LF  = b'\x0A'
