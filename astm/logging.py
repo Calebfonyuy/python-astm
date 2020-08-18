@@ -1,6 +1,8 @@
 from datetime import datetime
 from pathlib import Path
 from shutil import move
+from os import listdir
+import re
 
 """
 To control logging with command line commands, consider using 
@@ -34,6 +36,12 @@ def __write_log_file(log):
     path = Path('astm_log.log').stat()
     if path.st_size >=3000000:
         move('astm_log.log', "astm_log_"+str(datetime.now())+".log")
+    today = datetime.now().day
+    if day==1:
+        month = datetime.now().month
+        year = datetime.now().year
+        all_logs = [f for f in os.listdir(".") if len(re.findall('[0-9- :.]+[0-9]+',str(f)))>0]
+        
     
 
 if __name__=="__main__":
