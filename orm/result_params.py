@@ -1,3 +1,5 @@
+from .db_conn import get_conn
+
 params = {
     'WBC': 1121,
     'RBC': 2852,
@@ -7,9 +9,9 @@ params = {
     'MCH': None,
     'MCHC': 1111,
     'RDW-CV': 0,
-    'RDW-SD':0,
+    'RDW-SD': 0,
     'PLT': 1113,
-    'PDW':None,
+    'PDW': None,
     'PCT': None,
     'P-LCC': None,
     'PLCR': None,
@@ -27,3 +29,16 @@ params = {
     'LIC#': None,
     'LIC%': None
 }
+
+
+def get_param_id(param):
+    conn = get_conn()
+    if not conn:
+        return None
+    cursor = conn.cursor()
+    cursor.execute("select id from rendus where automate_rendu='"+param+"' limit 1")
+    id = cursor.fetchone()
+    if not id:
+        return None
+    else:
+        return id[0]

@@ -1,6 +1,7 @@
 import re
 from .db_conn import get_conn
 
+
 def _camel_to_snake(value):
     return re.sub(r'(?<!^)(?=[A-Z])', '_', value).lower()
 
@@ -12,6 +13,15 @@ def find_automate(model, serial_number, software_version):
         cursor = conn.cursor()
         cursor.execute("SELECT id FROM automates_automate where model='"+model+"' and serial_number='"+serial_number+"'")
         return cursor.fetchone()[0]
+
+
+def get_automates_ftp():
+    with get_conn() as conn:
+        if not conn:
+            return False
+        cursor = conn.cursor()
+        cursor.execute("SELECT * FROM automates_automate where document is true")
+        return cursor.fetchall()
 
 
 class Model:
@@ -28,7 +38,6 @@ class Model:
             return False
         else:
             cursor = conn.cursor()
-        query = ""
         if not self.id:
             query = "INSERT INTO "+self._get_db_table()+self._create_save_string()
         else:
@@ -80,6 +89,7 @@ class Model:
 class ResultatAutomate(Model):
 
     def __init__(self, automate, code_bar, code_rendu, nom_rendu, valeur, id=None, created_at=None):
+        super(ResultatAutomate, self).__init__()
         self.automate_id = automate
         self.code_bar = code_bar
         self.code_rendu = code_rendu
@@ -97,7 +107,7 @@ class ResultatAutomate(Model):
         cursor = conn.cursor()
         try:
             print("Now executing statement")
-            cursor.execute("UPDATE automates_resultatautomate SET statut=0 WHERE code_bar='"+self.code_bar+"' and code_rendu='" + str(self.code_rendu) + "'")
+            cursor.execute("UPDATE automates_resultatautomate SET statut=0 WHERE code_bar='"+self.code_bar + "' and code_rendu='" + str(self.code_rendu) + "'")
             print("Statement execution complete")
             return super(ResultatAutomate, self).save()
         except Exception as error:

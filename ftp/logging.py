@@ -34,37 +34,26 @@ def __write_log_file(log):
     file.write(log+"\n")
     file.close()
     path = Path('astm_log.log').stat()
-    if path.st_size >= 5000000:
+    if path.st_size >=5000000:
         move('astm_log.log', "astm_log_"+str(datetime.now())+".log")
     today = datetime.now().day
-    if today == 1:
+    if today==1:
         month = datetime.now().month
-        # ensure that records for november and december can be effectively deleted
+        #ensure that records for november and december can be effectively deleted
         if month < 3:
             month += 12
-        all_logs = [f for f in listdir(".") if len(re.findall('[0-9- :.]+[0-9]+', str(f))) > 0]
+        all_logs = [f for f in listdir(".") if len(re.findall('[0-9- :.]+[0-9]+',str(f)))>0]
         del_list = []
         for item in all_logs:
-            yr = int(re.findall('_([0-9]+)-', item)[0])
-            mon = int(re.findall('-([0-9]+)-', item)[0])
+            yr = int(re.findall('_([0-9]+)-',item)[0])
+            mon = int(re.findall('-([0-9]+)-',item)[0])
             if mon < month-1:
                 del_list.append(item)
         
         for item in del_list:
             remove(item)
-
-
-def ftp_log(info):
-    log = str(datetime.now())+" Client: "+str(info)
-    print(log)
-    file = open("ftp_log.log", 'a')
-    file.write(log+"\n")
-    file.close()
-    path = Path('ftp_log.log').stat()
-    if path.st_size >= 5000000:
-        move('ftp_log.log', "ftp_log_"+str(datetime.now())+".log")
     
 
-if __name__ == "__main__":
+if __name__=="__main__":
     log = str(datetime.now())+" Client: Test Write"
     __write_log_file(log)
